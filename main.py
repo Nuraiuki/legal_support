@@ -45,9 +45,62 @@ def ensure_folders_exist():
             f.write("{}")
 
 def run_bot():
-    """Run the bot in a separate thread"""
+    """Run the bot in a separate thread with its own event loop"""
+    import asyncio
     import bot
-    bot.main()
+    
+    # Create a new event loop for this thread
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # Run the bot in this thread's event loop
+    try:
+        # Manually call main in an event loop
+        loop.run_until_complete(bot_main_wrapper())
+    except Exception as e:
+        logger.error(f"Error in bot thread: {e}")
+    finally:
+        loop.close()
+        
+async def bot_main_wrapper():
+    """Async wrapper to manually start the bot application"""
+    import asyncio
+    import bot
+    from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+    from telegram import Update
+    
+    # Create the Application
+    application = Application.builder().token(bot.TELEGRAM_BOT_TOKEN).build()
+    
+    # Register command handlers
+    application.add_handler(CommandHandler("start", bot.start))
+    
+    # Register callback query handler for the agreement button
+    application.add_handler(CallbackQueryHandler(bot.agree_callback, pattern=f"^{bot.AGREE_CB}$"))
+    
+    # Register message handlers
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, bot.handle_text_message))
+    
+    # Register error handler
+    application.add_error_handler(bot.error_handler)
+    
+    # Start the Bot using polling
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True
+    )
+    logger.info("Bot polling started successfully!")
+    
+    # Keep the bot running until the program is terminated
+    stop_event = asyncio.Event()
+    try:
+        await stop_event.wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await application.stop()
 
 # Start the bot in a separate thread
 def start_bot_thread():
