@@ -1,0 +1,135 @@
+Build a Python-based Telegram bot that offers Kazakh women warm, AI-powered
+legal + emotional support.  The bot must run reliably on Replit’s free tier
+(long-polling), minimise OpenAI costs, and store no sensitive data.
+
+──────────────────────────────────────────────────────────────────────
+▶  TECH STACK
+  • Python 3.12
+  • python-telegram-bot ≥ 20  (async polling)
+  • openai ≥ 1.14
+  • python-dotenv
+  • tiktoken               (token counting)
+  • python-json-logger     (rotating cost log)
+
+──────────────────────────────────────────────────────────────────────
+▶  DIRECTORY LAYOUT
+.
+├── bot.py               # entry-point (async polling)
+├── ai.py                # OpenAI wrapper
+├── cache.py             # simple disk JSON cache (24 h TTL)
+├── prompt/
+│   └── system.txt       # full Tomyris system-prompt (insert below)
+├── data/users.csv       # first-time users log
+├── logs/usage.log       # DAILY rotating JSON logs (tokens + $)
+├── requirements.txt
+├── README.md
+└── .gitignore           # ignore .env, logs/, data/
+
+──────────────────────────────────────────────────────────────────────
+▶  requirements.txt
+python-telegram-bot>=20
+openai>=1.14
+python-dotenv
+tiktoken
+python-json-logger
+
+──────────────────────────────────────────────────────────────────────
+▶  ENV VARIABLES  (set via Replit Secrets)
+OPENAI_API_KEY     =  sk-********************************
+TELEGRAM_BOT_TOKEN =  8069325042:AAG-LZsipbg36PjDRWcxBJq_rCc9zb3RsTk                # from BotFather
+ADMIN_CHAT_ID      =  1018180421                 # your own ID
+
+──────────────────────────────────────────────────────────────────────
+▶  COST-SAVING CONSTANTS  (ai.py)
+MAX_HISTORY   = 3             # keep last 3 Q/A pairs
+MAX_TOKENS    = 700
+TEMPERATURE   = 0.7
+MODEL_NAME    = "gpt-4o-mini"
+
+cost_usd = (prompt_toks*0.15 + compl_toks*0.60) / 1_000_000
+# write each response as JSON line in logs/usage.log
+
+──────────────────────────────────────────────────────────────────────
+▶  CACHE  (cache.py)
+• Path   : cache/faq.json  (create if absent)
+• Key    : SHA-256 of user_text
+• Value  : { "answer": "...", "ts": epoch }
+• TTL    : 86 400 s (24 h)
+
+──────────────────────────────────────────────────────────────────────
+▶  BOT LOGIC  (bot.py)
+
+1. /start
+   • Show consent (“Нажмите «Согласен»” button).
+   • Save user id, username, first_name in data/users.csv (if new).
+   • Notify ADMIN_CHAT_ID once per user.
+
+2. Any text
+   • If contains ["боюсь","нужна помощь","panic","I feel scared"]:
+        reply with calming message +
+        YouTube lo-fi link  https://youtu.be/5qap5aO4i9A +
+        crisis numbers 150, 111, 102.
+   • else:
+        – look up cache → if hit send cached answer;
+        – else call ai.ask_openai(), save to cache, send reply.
+
+3. Error handling
+   • On OpenAI 429 / quota → reply:
+       “Сервис временно недоступен, попробуйте позже 💖”
+
+──────────────────────────────────────────────────────────────────────
+▶  ai.py  — helper functions
+
+• build_messages(history, user_msg) → trims to MAX_HISTORY.
+• count tokens with tiktoken.
+• ask_openai()  – call ChatCompletion with  
+      model=MODEL_NAME, temperature=0.7, max_tokens=700  
+  – return assistant text, prompt_toks, completion_toks.
+
+──────────────────────────────────────────────────────────────────────
+▶  prompt/system.txt  — INSERT THIS TEXT EXACTLY
+
+You are **Tomyris**, the legendary warrior-queen of the ancient Saka tribes — graceful, un-intimidated, and fiercely protective of justice.  
+Your mission: offer women in Kazakhstan clear, friendly, and empowering guidance about their legal rights and emotional well-being.
+
+┌─ Core Persona ───────────────────────────────────────────────┐
+• Speak as Tomyris: warm, courageous, compassionate.  
+• Radiate strength and calm; never condescending.  
+• Use inclusive language (“сестра”, “dear sister”, “biz”) to build trust.  
+• Each reply starts with a brief empathetic acknowledgment of feelings.
+
+┌─ Knowledge & Scope ──────────────────────────────────────────┐
+• Up-to-date on Kazakhstan legislation (Family Code, Domestic-Violence Law, Labor Code, Admin & Criminal Codes).  
+• Explain rights in plain Russian/Kazakh; avoid legalese.  
+• Offer next steps: hotlines 150, 111; police 102; crisis centers; eGov.kz.  
+• Cite article numbers when helpful.  
+• Always add disclaimer:  
+  “⚖️ Я не юрист, консультирую на основе открытых данных. Для точной помощи обратитесь к юристу.”
+
+┌─ Emotional Support Mode ─────────────────────────────────────┐
+• Detect distress keywords (“боюсь” etc.).  
+• Provide grounding advice and calming-music link.  
+
+┌─ Style Rules ────────────────────────────────────────────────┐
+1. Friendly (“Давай разберёмся вместе”).  
+2. Short paragraphs, bullet steps.  
+3. Emojis sparingly (🔥⚔️ strength, 💖 care).  
+4. End with: “Ты не одна. Томирис рядом — вместе мы справимся!”  
+5. ≤ 300 words unless user asks for more.
+
+┌─ Safety & Ethics ───────────────────────────────────────────┐
+• If self-harm/danger → urge call 112, give hotlines.  
+• No medical advice, no discrimination.  
+• Respect privacy; don’t request personal data unless volunteered.
+
+Remember: help them feel safe, heard, and empowered — like a true queen standing shield-to-shield with her sisters.
+
+──────────────────────────────────────────────────────────────────────
+▶  README.md  (short bullets)
+
+• **Replit run:** add secrets → click **Run** → bot starts polling.  
+• **Local dev:**  
+  ```bash
+  pip install -r requirements.txt
+  export OPENAI_API_KEY=... TELEGRAM_BOT_TOKEN=... ADMIN_CHAT_ID=...
+  python bot.py
