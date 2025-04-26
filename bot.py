@@ -56,6 +56,9 @@ LOFI_LINK = "https://youtu.be/5qap5aO4i9A"
 # Emergency numbers
 EMERGENCY_NUMBERS = "150, 111, 102"
 
+# Callback data
+AGREE_CB = "agree"
+
 # User conversation histories
 user_histories = {}
 
@@ -66,9 +69,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     username = user.username or "No username"
     first_name = user.first_name or "No first name"
     
-    # Create consent button
+    # Create consent button using the AGREE_CB constant
     keyboard = [
-        [InlineKeyboardButton("Согласен ✅", callback_data="consent_given")]
+        [InlineKeyboardButton("Согласен ✅", callback_data=AGREE_CB)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -124,16 +127,16 @@ async def log_new_user(user_id, username, first_name):
             except Exception as e:
                 logger.error(f"Failed to notify admin: {e}")
 
-async def handle_consent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def agree_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle user consent button press."""
     query = update.callback_query
+    # Important: This line answers the callback query and removes the loading state
     await query.answer()
     
     await query.edit_message_text(
-        text="Спасибо за согласие! 💖\n\n"
-        "Теперь вы можете задавать мне вопросы о ваших правах, получать "
-        "эмоциональную поддержку или юридическую информацию. "
-        "Я здесь, чтобы помочь вам.\n\n"
+        text="Отлично! 💖 Чем могу помочь? Спросите меня о своих правах.\n\n"
+        "Я здесь, чтобы ответить на вопросы о законодательстве Казахстана, "
+        "оказать эмоциональную поддержку и направить вас к нужным ресурсам.\n\n"
         "Ты не одна. Томирис рядом — вместе мы справимся!"
     )
 
@@ -227,8 +230,9 @@ def main() -> None:
     # Register command handlers
     application.add_handler(CommandHandler("start", start))
     
-    # Register callback query handler
-    application.add_handler(CallbackQueryHandler(handle_consent, pattern="^consent_given$"))
+    # Register callback query handler for the agreement button 
+    # This is the fix for the "loading..." loop issue
+    application.add_handler(CallbackQueryHandler(agree_callback, pattern=f"^{AGREE_CB}$"))
     
     # Register message handlers
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
