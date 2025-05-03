@@ -21,7 +21,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Constants for cost optimization
 MAX_HISTORY = 3  # Number of conversation exchanges to keep
-MAX_TOKENS = 700  # Maximum tokens in completion
+MAX_TOKENS = 500  # Maximum tokens in completion
 TEMPERATURE = 0.7  # Temperature parameter for generation
 MODEL_NAME = "gpt-4o-mini"  # Using gpt-4o-mini for cost efficiency
 
@@ -76,7 +76,7 @@ def build_messages(history, user_msg):
             system_prompt = f.read()
     except FileNotFoundError:
         # If the file doesn't exist, use a minimal system prompt
-        system_prompt = "You are Tomyris, an AI assistant supporting women in Kazakhstan."
+        system_prompt = "You are Tomiris, an AI assistant supporting women in Kazakhstan."
     
     # Start with system message
     messages = [{"role": "system", "content": system_prompt}]
